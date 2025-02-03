@@ -5,7 +5,7 @@ export const createNote=async(req,res)=>{
     try {
         const { title, content,images,audio,isFavourite } = req.body;
     
-        if (!title || content || images.length > 4) {
+        if (!title || !content || images.length > 4) {
           return res.status(400).json({ error: "Invalid, Enter valid data" });
         }
     
@@ -27,11 +27,11 @@ export const createNote=async(req,res)=>{
 
 export const updateNote=async(req,res)=>{
   try {
-    const { noteId } = req.params;
+    const { id } = req.params;
     const { title, content, images, removeImages, audio, removeAudio, isFavourite } = req.body;
 
     // Find the note and ensure it belongs to the logged-in user
-    const note = await Notes.findOne({ _id: noteId, userId: req.user._id });
+    const note = await Notes.findOne({ _id: id, userId: req.user._id });
 
     if (!note) return res.status(404).json({ error: "Note not found or unauthorized" });
 
@@ -51,7 +51,7 @@ export const updateNote=async(req,res)=>{
         }
 
         // Filter out removed images
-        note.images = note.images.filter(image => !imagesToRemove.includes(image));
+        note.images = note.images.filter(image => !removeImages.includes(image));
       } catch (err) {
         return res.status(400).json({ error: "Error removing images." });
       }
@@ -115,7 +115,7 @@ export const specificNote=async(req,res)=>{
     try {
         const { id } = req.params;
     
-        const note = await Notes.findOne({ _id: id, user: req.user._id });
+        const note = await Notes.findOne({ _id: id, userId: req.user._id });
         if (!note) return res.status(404).json({ error: "Note not found or unauthorized" });
     
         res.status(200).json(note);
@@ -129,7 +129,7 @@ export const deleteNote=async(req,res)=>{
         const { id } = req.params;
     
        //Find the note before deletion
-    const note = await Notes.findOne({ _id: id, user: req.user._id });
+    const note = await Notes.findOne({ _id: id, userId: req.user._id });
     if (!note) return res.status(404).json({ error: "Note not found or unauthorized" });
 
     // Delete images from Cloudinary
@@ -147,10 +147,19 @@ export const deleteNote=async(req,res)=>{
     }
 
     // Delete the note from the database
-    await Notes.findOneAndDelete({ _id: id, user: req.user._id });
+    await Notes.findOneAndDelete({ _id: id, userId: req.user._id });
 
     res.status(200).json({ message: "Note deleted successfully" });
       } catch (error) {
         res.status(500).json({ error: error.message });
       }
+}
+
+export const favourites =async(req,res)=>{
+  try {
+    const allFavourites = await Notes.find({ userId: req.user._id, isFavourite: true });
+    res.status(200).json(allFavourites);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 }
