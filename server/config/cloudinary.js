@@ -47,7 +47,7 @@ export const uploadAudio = async (fileBuffer) => {
           folder: "Notes-app-audio",   
           allowed_formats: ["mp3", "wav", "ogg", "mp4"], 
           quality: "auto",         
-          format: "auto",          
+          format: "mp3",          
         },
         (error, result) => {
           if (error) {

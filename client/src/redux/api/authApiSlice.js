@@ -16,7 +16,7 @@ export const authApiSlice=apiSlice.injectEndpoints({
                 method: 'POST',
             }),
         }),
-        signin:builder.mutation({
+        signup:builder.mutation({
             query:(data)=>({
                 url:`${BASE_URL}${AUTH_URL}/signup`,
                 method: 'POST',
@@ -29,5 +29,5 @@ export const authApiSlice=apiSlice.injectEndpoints({
 export const {
     useLoginMutation,
     useLogoutMutation,
-    useSigninMutation
+    useSignupMutation
 }=authApiSlice;

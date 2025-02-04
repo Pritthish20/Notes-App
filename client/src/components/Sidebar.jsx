@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { FaBars, FaHome, FaStar, FaPlus, FaCamera, FaMicrophone, FaSignOutAlt } from "react-icons/fa";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import AddModal from './AddNote'
+import {useLogoutMutation} from '../redux/api/authApiSlice';
+import {logout} from '../redux/slice/authSlice'
+import { useDispatch } from "react-redux";
+import {toast} from 'react-toastify'
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const location = useLocation();
   const [addModal, setAddModal] = useState(false);
+  const [logoutCall] = useLogoutMutation();
+  const navigate =useNavigate();
+  const dispatch = useDispatch();
+    const [activeTab, setActiveTab] = useState("");
+  
 
   useEffect(() => {
     const handleResize = () => {
@@ -20,6 +29,18 @@ const Sidebar = () => {
   }, []);
 
   const toggleSidebar = () => setIsOpen(!isOpen);
+
+  const logoutHandler = async () => {
+    try {
+      await logoutCall().unwrap();
+      dispatch(logout());
+      navigate("/login");
+      toast.success("Logged out successfully!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to log out. Please try again!");
+    }
+  };
 
   return (
     <div className="flex">
@@ -65,7 +86,7 @@ const Sidebar = () => {
 
         {/* Logout Button */}
         <div className="p-4 mt-auto border-t border-gray-500">
-          <button className="w-full bg-red-500 text-white py-2 rounded flex items-center justify-center hover:bg-red-600">
+          <button onClick={logoutHandler} className="w-full bg-red-500 text-white py-2 rounded flex items-center justify-center hover:bg-red-600">
             <FaSignOutAlt className="mr-2" /> {isOpen ? 'Logout':''}
           </button>
         </div>
@@ -73,17 +94,17 @@ const Sidebar = () => {
 
       {/* Floating Buttons */}
       <div  className="fixed bottom-6 right-6 flex flex-col space-y-4">
-        <button onClick={()=>setAddModal(true)} className="bg-teal-500 text-white p-4 rounded-full border border-gray-500 shadow-lg hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-400">
+        <button onClick={()=>{setAddModal(true);setActiveTab("create")}} className="bg-teal-500 text-white p-4 rounded-full border border-gray-500 shadow-lg hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-400">
           <FaPlus size={24} />
         </button>
-        <button onClick={()=>setAddModal(true)} className="bg-blue-500 text-white p-4 rounded-full border border-gray-500 shadow-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
+        <button onClick={()=>{setAddModal(true); setActiveTab("create")}}className="bg-blue-500 text-white p-4 rounded-full border border-gray-500 shadow-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
           <FaCamera size={24} />
         </button>
-        <button onClick={()=>setAddModal(true)} className="bg-orange-500 text-white p-4 rounded-full border border-gray-500 shadow-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-400">
+        <button onClick={()=>{setAddModal(true); setActiveTab("notes")}}className="bg-orange-500 text-white p-4 rounded-full border border-gray-500 shadow-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-400">
           <FaMicrophone size={24} />
         </button>
       </div>
-      {addModal && <AddModal setModal={setAddModal}/>}
+      {addModal && <AddModal setModal={setAddModal} activeTab={activeTab} setActiveTab={setActiveTab}/>}
     </div>
   );
 };

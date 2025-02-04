@@ -11,12 +11,14 @@ import Signup from './pages/auth/Signup.jsx'
 import Home from './pages/users/Home.jsx'
 import Favourites from './pages/users/Favourites.jsx'
 import UserRoute from './components/UserRoutes.jsx'
+import Dashboard from './pages/users/Dashboard.jsx'
 
 const routes=createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" element={<App />} >
-      <Route path='/' element={<Login/>}/>
+      <Route path='/login' element={<Login/>}/>
       <Route path='/signup' element={<Signup/>}/>
+      <Route path='/' element={<Dashboard/>}/>
       <Route path='/home' element={<Home/>}/>
       <Route path='/fav' element={<Favourites/>}/>
 

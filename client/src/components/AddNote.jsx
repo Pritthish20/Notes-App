@@ -1,58 +1,46 @@
 import React, { useState, useRef, useEffect } from "react";
-import {
-  FiCopy,
-  FiX,
-  FiMaximize,
-  FiMinimize,
-} from "react-icons/fi";
-import {
-  FaMicrophone,
-  FaVolumeUp,
-  FaPlus,
-  FaImage,
-} from "react-icons/fa";
+import { FiCopy, FiX, FiMaximize, FiMinimize } from "react-icons/fi";
+import { FaMicrophone, FaVolumeUp, FaPlus, FaImage } from "react-icons/fa";
 import { HiOutlineDownload } from "react-icons/hi";
+import {
+  useNewNoteMutation,
+  useUploadAudioMutation,
+  useUploadImageMutation,
+} from "../redux/api/notesApiSlice";
 
-const AddNote = ({ setModal }) => {
-  // Tabs: "notes", "transcript", "create", "speaker"
-  const [activeTab, setActiveTab] = useState("transcript");
-
-  // Fullscreen state
+const AddNote = ({ setModal, activeTab, setActiveTab }) => {
   const [isFullScreen, setIsFullScreen] = useState(false);
-
-  // Recording states & references
   const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [recordedAudio, setRecordedAudio] = useState(null);
+  const [transcript, setTranscript] = useState("");
+  const [isFavourite, setIsFavourite] = useState(false);
   const recognitionRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const durationIntervalRef = useRef(null);
+  const [newNote] = useNewNoteMutation();
+  const [uploadAudio]=useUploadAudioMutation();
+  const [uploadImage]=useUploadImageMutation();
+  const [loading,setLoading] = useState(false);
 
-  // “Read More” toggle for transcript
-  const [showFullTranscript, setShowFullTranscript] = useState(false);
-
-  // The entire transcript (for demonstration)
-  const fullTranscript = `I'm recording an audio to transcribe into text for the assignment of engineering in terms of actors. This is a longer transcript demo to illustrate the "Read More" functionality.`;
-
-  // The note you’re creating
   const [note, setNote] = useState({
     title: "",
     content: "",
-    photos: [],
+    images: [],
   });
 
-  // Previews for any uploaded images
   const [photoPreviews, setPhotoPreviews] = useState([]);
-
-  // Dynamic date and time
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
 
-  // Update the date and time every second
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentDateTime(new Date());
     }, 1000);
 
-    return () => clearInterval(interval); // Cleanup interval on unmount
+    return () => clearInterval(interval);
   }, []);
 
-  // Format the date and time
   const formattedDateTime = currentDateTime.toLocaleString("en-GB", {
     day: "numeric",
     month: "long",
@@ -62,11 +50,23 @@ const AddNote = ({ setModal }) => {
     hour12: true,
   });
 
-  /**
-   * -----------------------
-   *  Speech Recognition
-   * -----------------------
-   */
+  const handleToggleFavourite = () => {
+    setIsFavourite((prev) => !prev);
+  };
+
+  const stopRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+    }
+    if (durationIntervalRef.current) {
+      clearInterval(durationIntervalRef.current);
+    }
+    setIsRecording(false);
+  };
+
   const handleRecord = () => {
     if (
       !("webkitSpeechRecognition" in window) &&
@@ -80,89 +80,113 @@ const AddNote = ({ setModal }) => {
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!isRecording) {
-      // Start recording
+      setTranscript("");
+      setRecordedAudio(null);
+      setRecordingDuration(0);
+      audioChunksRef.current = [];
+
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.lang = "en-US";
-      recognitionRef.current.continuous = false;
+      recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = false;
       recognitionRef.current.maxAlternatives = 1;
 
       recognitionRef.current.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        // Append transcript to note content
-        setNote((prev) => ({
-          ...prev,
-          content: prev.content
-            ? prev.content + " " + transcript
-            : transcript,
-        }));
-        alert("Recording finished. Transcript added to note content.");
-        setIsRecording(false);
+        const lastResult = event.results[event.results.length - 1];
+        const newTranscript = lastResult[0].transcript;
+        setTranscript((prev) => prev + " " + newTranscript);
       };
 
       recognitionRef.current.onerror = (event) => {
         console.error("Speech recognition error:", event.error);
         alert("Speech recognition error: " + event.error);
-        setIsRecording(false);
+        stopRecording();
       };
 
       recognitionRef.current.onend = () => {
-        setIsRecording(false);
+        if (isRecording && recordingDuration < 60) {
+          recognitionRef.current.start();
+        }
       };
 
       recognitionRef.current.start();
       setIsRecording(true);
+      // setRecordingDuration(0);
 
-      // Auto-stop after 60 seconds
-      setTimeout(() => {
-        if (recognitionRef.current && isRecording) {
-          recognitionRef.current.stop();
-        }
-      }, 60000);
-    } else {
-      // Stop recording manually
-      if (recognitionRef.current) {
+      // Start recording audio
+      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        mediaRecorderRef.current = new MediaRecorder(stream);
+        mediaRecorderRef.current.ondataavailable = (event) => {
+          audioChunksRef.current.push(event.data);
+        };
+        mediaRecorderRef.current.onstop = () => {
+          const audioBlob = new Blob(audioChunksRef.current, {
+            type: "audio/mp3",
+          });
+          setRecordedAudio(URL.createObjectURL(audioBlob));
+
+          // Start speech recognition after recording stops
+          // recognitionRef.current.start();
+        };
+        mediaRecorderRef.current.start();
+      });
+
+      recognitionRef.current.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map((result) => result[0].transcript)
+          .join(" ");
+        setTranscript(transcript);
         recognitionRef.current.stop();
-      }
-      setIsRecording(false);
+      };
+
+      setIsRecording(true);
+
+      durationIntervalRef.current = setInterval(() => {
+        setRecordingDuration((prev) => {
+          if (prev >= 60) {
+            stopRecording();
+            return 60;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+    } else {
+      stopRecording();
     }
   };
 
-  /**
-   * -----------------------
-   *  Text-to-Speech
-   * -----------------------
-   */
   const handleTextToSpeech = () => {
-    if (!note.content.trim()) {
+    if (!transcript.trim()) {
       alert("No note content to speak.");
       return;
     }
-    const utterance = new SpeechSynthesisUtterance(note.content);
+    const utterance = new SpeechSynthesisUtterance(transcript);
     speechSynthesis.speak(utterance);
   };
 
-  /**
-   * -----------------------
-   *  Photo Upload
-   * -----------------------
-   */
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
-    setNote((prevNote) => ({ ...prevNote, photos: files }));
-    const previews = files.map((file) => URL.createObjectURL(file));
-    setPhotoPreviews(previews);
+    setNote((prevNote) => ({
+      ...prevNote,
+      images: [...prevNote.images, ...files],
+    }));
+    setPhotoPreviews((prev) => [
+      ...prev,
+      ...files.map((file) => URL.createObjectURL(file)),
+    ]);
   };
 
-  /**
-   * -----------------------
-   *  Copy Transcript
-   * -----------------------
-   */
+  const handleRemovePhoto = (index) => {
+    setPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
+    setNote((prevNote) => ({
+      ...prevNote,
+      images: prevNote.images.filter((_, i) => i !== index),
+    }));
+  };
+
   const handleCopyTranscript = () => {
-    // For simplicity, copy the entire `fullTranscript`
     navigator.clipboard
-      .writeText(fullTranscript)
+      .writeText(transcript)
       .then(() => {
         alert("Transcript copied to clipboard!");
       })
@@ -171,36 +195,66 @@ const AddNote = ({ setModal }) => {
       });
   };
 
-  /**
-   * -----------------------
-   *  Download Audio (stub)
-   * -----------------------
-   */
   const handleDownloadAudio = () => {
-    alert("Downloading audio (placeholder)...");
-    // In a real app, you'd trigger a file download here.
+    if (recordedAudio) {
+      const a = document.createElement("a");
+      a.href = recordedAudio;
+      a.download = "recording.mp3";
+      a.click();
+    } else {
+      alert("No audio recorded yet.");
+    }
   };
 
-  /**
-   * -----------------------
-   *  Create Note
-   * -----------------------
-   */
-  const handleCreateNote = () => {
-    if (!note.title.trim() || !note.content.trim()) {
-      alert("Please fill out all note fields.");
+  const handleCreateNote = async () => {
+    if (!note.title.trim() || !note.content.trim() || note.images.length > 4) {
+      alert("Invalid input: Ensure title and content are filled, and max 4 images.");
       return;
     }
-    // In a real app, dispatch or call an API here.
-    alert("Note created (placeholder)!");
-    setModal(false); // close modal
+  
+    try {
+      setLoading(true);
+      const imageForm = new FormData();
+      note.images.forEach((file) => {
+        imageForm.append("images", file);
+      });
+      
+      const uploadedImages = note.images.length
+        ? await uploadImage(imageForm).unwrap()
+        : { images: [] };
+  
+      let uploadedAudioUrl = "";
+      if (recordedAudio) {
+        const audioBlob = await fetch(recordedAudio).then((res) => res.blob());
+        const audioForm = new FormData();
+        audioForm.append("audio", audioBlob, "recording.mp3");
+        for (let pair of audioForm.entries()) {
+          console.log(pair[0], pair[1]); // Should log: "audio", [Blob]
+        }
+        const uploadedAudio = await uploadAudio(audioForm).unwrap();
+        uploadedAudioUrl = uploadedAudio.audio;
+      }
+  
+      const newNoteData = {
+        title: note.title,
+        content: note.content,
+        images: uploadedImages.images,
+        audio: uploadedAudioUrl,
+        isFavourite,
+      };
+  
+      await newNote(newNoteData).unwrap();
+      
+      alert("Note created successfully!");
+      setLoading(false);
+      setModal(false);
+    } catch (error) {
+      console.error("Failed to create note:", error);
+      alert("Error creating note. Please try again.");
+    }
   };
+  
 
-  /**
-   * -----------------------
-   *  Modal Layout
-   * -----------------------
-   */
   if (!setModal) return null;
 
   return (
@@ -217,12 +271,8 @@ const AddNote = ({ setModal }) => {
         {/* Header */}
         <div className="flex items-start justify-between p-4 border-b">
           <div>
-            <h2 className="text-lg font-semibold">
-              Add Notes
-            </h2>
-            <p className="text-sm text-gray-500">
-              {formattedDateTime}
-            </p>
+            <h2 className="text-lg font-semibold">Add Notes</h2>
+            <p className="text-sm text-gray-500">{formattedDateTime}</p>
           </div>
           <div className="flex items-center space-x-4">
             <button
@@ -234,18 +284,36 @@ const AddNote = ({ setModal }) => {
           </div>
         </div>
 
+        <div className="flex items-center ml-4 mt-2">
+          <input
+            type="checkbox"
+            checked={isFavourite}
+            onChange={handleToggleFavourite}
+            className="mr-2 w-4 h-4"
+          />
+          <label className="text-gray-700 text-lg">Mark as Favourite</label>
+        </div>
+
         {/* Audio Controls */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="text-sm text-gray-600">
-            00:00 / 01:00
+        <div className="flex flex-col p-4 border-b">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-sm text-gray-600">
+              {recordingDuration}s / 60s
+            </div>
+            <button
+              onClick={handleDownloadAudio}
+              className="flex items-center space-x-1 text-gray-600 hover:text-gray-800"
+            >
+              <HiOutlineDownload size={20} />
+              <span>Download Audio</span>
+            </button>
           </div>
-          <button
-            onClick={handleDownloadAudio}
-            className="flex items-center space-x-1 text-gray-600 hover:text-gray-800"
-          >
-            <HiOutlineDownload size={20} />
-            <span>Download Audio</span>
-          </button>
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div
+              className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+              style={{ width: `${(recordingDuration / 60) * 100}%` }}
+            ></div>
+          </div>
         </div>
 
         {/* Fullscreen Toggle */}
@@ -317,22 +385,6 @@ const AddNote = ({ setModal }) => {
                 </p>
               )}
 
-              {photoPreviews.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-semibold">Photos:</h4>
-                  <div className="grid grid-cols-3 gap-2 mt-2">
-                    {photoPreviews.map((src, index) => (
-                      <img
-                        key={index}
-                        src={src}
-                        alt={`Preview ${index}`}
-                        className="w-full h-auto object-cover rounded-md"
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <button
                 onClick={handleRecord}
                 className="mt-4 inline-flex items-center text-white bg-red-500 hover:bg-red-600 px-3 py-2 rounded-md transition"
@@ -348,19 +400,9 @@ const AddNote = ({ setModal }) => {
             <div>
               <h3 className="text-md font-semibold mb-2">Transcript</h3>
               <p className="text-gray-700 text-sm whitespace-pre-wrap">
-                {showFullTranscript
-                  ? fullTranscript
-                  : fullTranscript.slice(0, 90) + "..."}
+                {transcript || "No transcript available yet."}
               </p>
               <div className="flex items-center space-x-4 mt-2">
-                {fullTranscript.length > 90 && (
-                  <button
-                    onClick={() => setShowFullTranscript(!showFullTranscript)}
-                    className="text-blue-500 hover:text-blue-600 text-sm"
-                  >
-                    {showFullTranscript ? "Show Less" : "Read More"}
-                  </button>
-                )}
                 <button
                   onClick={handleCopyTranscript}
                   className="flex items-center text-gray-600 hover:text-gray-800"
@@ -403,7 +445,7 @@ const AddNote = ({ setModal }) => {
               </div>
 
               <div className="mb-4">
-                <label className="block text-gray-600 mb-1">Add Photos</label>
+                <label className="block text-gray-600 mb-1">Add images</label>
                 <label className="inline-flex items-center bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer hover:bg-blue-600 transition">
                   <FaImage className="mr-2" />
                   Upload Images
@@ -420,22 +462,30 @@ const AddNote = ({ setModal }) => {
               {photoPreviews.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mt-2">
                   {photoPreviews.map((src, index) => (
-                    <img
-                      key={index}
-                      src={src}
-                      alt={`Preview ${index}`}
-                      className="w-full h-auto object-cover rounded-md"
-                    />
+                    <div key={index} className="relative w-20 h-14 ">
+                      <img
+                        src={src}
+                        alt={`Preview ${index}`}
+                        className="object-cover rounded-md"
+                      />
+                      <button
+                        onClick={() => handleRemovePhoto(index)}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
+                      >
+                        <FiX size={12} />
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
 
               <button
+              disabled={loading}
                 onClick={handleCreateNote}
                 className="mt-4 inline-flex items-center text-white bg-teal-500 hover:bg-teal-600 px-4 py-2 rounded-md transition"
               >
                 <FaPlus className="mr-2" />
-                Create Note
+                {loading ? 'Creating...':'Create Note'}
               </button>
             </div>
           )}
@@ -443,9 +493,7 @@ const AddNote = ({ setModal }) => {
           {/** SPEAKER TAB **/}
           {activeTab === "speaker" && (
             <div>
-              <h3 className="text-md font-semibold mb-2">
-                Speaker Transcript
-              </h3>
+              <h3 className="text-md font-semibold mb-2">Speaker Transcript</h3>
               <p className="text-gray-600 text-sm">
                 Click the button below to have the note content read aloud.
               </p>

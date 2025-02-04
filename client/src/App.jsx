@@ -6,7 +6,7 @@ import Sidebar from "./components/Sidebar";
 
 const App = () => {
   const location = useLocation();
-  const noSidebarRoutes = ["/", "/signup"];
+  const noSidebarRoutes = ["/login", "/signup"];
 
   return (
     <div className="flex">

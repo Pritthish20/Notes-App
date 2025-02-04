@@ -1,9 +1,12 @@
-import React from "react";
-import { FiCopy } from "react-icons/fi";
+import { FiCopy, FiStar } from "react-icons/fi";
 import { FaMicrophone, FaImage, FaFileAlt } from "react-icons/fa";
+import NotesModal  from './NotesModal'
+import { useState } from "react";
 
 const NoteCard = ({ note }) => {
-  const { title, content, audio, images, date, type } = note;
+  const { id, title, content, audio, images, date, type, isFavourite } = note;
+  
+  const [viewModal,setViewModal] =useState(false);
 
   const handleCopyToClipboard = () => {
     navigator.clipboard.writeText(content || "").then(() => {
@@ -12,7 +15,9 @@ const NoteCard = ({ note }) => {
   };
 
   return (
-    <div className="bg-white w-full max-w-sm p-6 rounded-lg shadow-md flex flex-col space-y-4 border border-gray-200 hover:shadow-lg transition-shadow">
+    <div
+      className="bg-white w-full max-w-sm p-6 rounded-lg shadow-md flex flex-col space-y-4 border border-gray-200 hover:shadow-lg transition-shadow"
+    >
       {/* Date and Note Type */}
       <div className="flex justify-between items-center text-sm text-gray-500">
         <p>{new Date(date).toLocaleString()}</p>
@@ -26,22 +31,23 @@ const NoteCard = ({ note }) => {
       </div>
 
       {/* Note Content */}
-      <div className="flex-1">
-        <h3 className="text-lg font-semibold text-gray-800 truncate">{title}</h3>
+      <div onClick={() => setViewModal(true)} className="flex-1">
+        <h3 className="text-lg font-semibold text-gray-800 truncate">
+          {title}
+        </h3>
         <p className="text-sm text-gray-600 mt-2 line-clamp-3">{content}</p>
 
-        {/* Display audio if available */}
+        {/* Audio Information */}
         {audio && (
-          <audio controls className="mt-4 w-full">
-            <source src={audio} type="audio/mpeg" />
-            Your browser does not support the audio element.
-          </audio>
+          <div className="mt-2 flex items-center text-sm text-teal-600">
+            <FaMicrophone className="mr-2" /> Audio Available
+          </div>
         )}
 
-        {/* Display image if available */}
+        {/* Image Information */}
         {images && images.length > 0 && (
-          <div className="mt-4">
-            <img src={images[0]} alt="Note" className="w-full rounded-md" />
+          <div className="mt-2 flex items-center text-sm text-blue-600">
+            <FaImage className="mr-2" /> {images.length} Image(s) Available
           </div>
         )}
       </div>
@@ -55,7 +61,9 @@ const NoteCard = ({ note }) => {
         >
           <FiCopy size={22} />
         </button>
+        <FiStar className={isFavourite ? "text-yellow-500" : "text-gray-400"} />
       </div>
+      {viewModal && <NotesModal setModal={setViewModal} note={note} />}
     </div>
   );
 };

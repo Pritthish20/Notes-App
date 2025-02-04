@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import { setUserInfo } from "../../redux/slice/authSlice";
-import { useSigninMutation } from "../../redux/api/authApiSlice";
+import { useSignupMutation } from "../../redux/api/authApiSlice";
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -14,7 +14,7 @@ const Signup = () => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [signup, { isLoading }] = useSigninMutation();
+  const [signup, { isLoading }] = useSignupMutation();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -27,6 +27,7 @@ const Signup = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // console.log(formData);
       const res = await signup({ ...formData }).unwrap();
       dispatch(setUserInfo({ ...res }));
       navigate("/");

@@ -1,7 +1,7 @@
 import { apiSlice } from "./apiSlice";
 import { BASE_URL,NOTES_URL, IMAGE_URL,AUDIO_URL } from "../constants";
 
-export const productApiSlice = apiSlice.injectEndpoints({
+export const notesApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
 
     getAllNotes: builder.query({
@@ -9,18 +9,18 @@ export const productApiSlice = apiSlice.injectEndpoints({
     }),
 
     newNote: builder.mutation({
-      query: (newProduct) => ({
+      query: (newNotes) => ({
         url: `${BASE_URL}${NOTES_URL}/new`,
         method: "POST",
-        body: newProduct,
+        body: newNotes,
       }),
     }),
 
     updateNote: builder.mutation({
-      query: ({ id, updatedProduct }) => ({
+      query: ({ id, updatedNotes }) => ({
         url: `${BASE_URL}${NOTES_URL}/${id}`,
         method: "PUT",
-        body: updatedProduct,
+        body: updatedNotes,
       }),
     }),
 
@@ -69,4 +69,4 @@ export const{
   useGetFavouriteNotesQuery,
   useUploadImageMutation,
   useUploadAudioMutation,
- }=productApiSlice;
+ }=notesApiSlice;
