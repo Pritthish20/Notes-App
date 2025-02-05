@@ -9,7 +9,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 flex flex-col items-center justify-center text-center">
+    <div className=" bg-gray-100 p-6 mt-10 text-center">
       <h1 className="text-2xl font-bold text-gray-800 mb-4">Welcome to the Dashboard</h1>
       <p className="text-gray-600 mb-6">Manage your notes efficiently and stay organized.</p>
       <button 

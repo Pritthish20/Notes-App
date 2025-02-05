@@ -2,6 +2,7 @@ import { FiCopy, FiStar } from "react-icons/fi";
 import { FaMicrophone, FaImage, FaFileAlt } from "react-icons/fa";
 import NotesModal  from './NotesModal'
 import { useState } from "react";
+import { toast } from "react-toastify";
 
 const NoteCard = ({ note }) => {
   const { id, title, content, audio, images, date, type, isFavourite } = note;
@@ -10,7 +11,7 @@ const NoteCard = ({ note }) => {
 
   const handleCopyToClipboard = () => {
     navigator.clipboard.writeText(content || "").then(() => {
-      alert("Note copied to clipboard!");
+      toast.info("Note copied to clipboard!");
     });
   };
 

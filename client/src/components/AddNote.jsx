@@ -7,6 +7,7 @@ import {
   useUploadAudioMutation,
   useUploadImageMutation,
 } from "../redux/api/notesApiSlice";
+import { toast } from "react-toastify";
 
 const AddNote = ({ setModal, activeTab, setActiveTab }) => {
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -20,9 +21,9 @@ const AddNote = ({ setModal, activeTab, setActiveTab }) => {
   const audioChunksRef = useRef([]);
   const durationIntervalRef = useRef(null);
   const [newNote] = useNewNoteMutation();
-  const [uploadAudio]=useUploadAudioMutation();
-  const [uploadImage]=useUploadImageMutation();
-  const [loading,setLoading] = useState(false);
+  const [uploadAudio] = useUploadAudioMutation();
+  const [uploadImage] = useUploadImageMutation();
+  const [loading, setLoading] = useState(false);
 
   const [note, setNote] = useState({
     title: "",
@@ -72,7 +73,7 @@ const AddNote = ({ setModal, activeTab, setActiveTab }) => {
       !("webkitSpeechRecognition" in window) &&
       !("SpeechRecognition" in window)
     ) {
-      alert("Your browser does not support speech recognition.");
+      toast.error("Your browser does not support speech recognition.");
       return;
     }
 
@@ -99,7 +100,7 @@ const AddNote = ({ setModal, activeTab, setActiveTab }) => {
 
       recognitionRef.current.onerror = (event) => {
         console.error("Speech recognition error:", event.error);
-        alert("Speech recognition error: " + event.error);
+        toast.error("Speech recognition error: " + event.error);
         stopRecording();
       };
 
@@ -111,9 +112,7 @@ const AddNote = ({ setModal, activeTab, setActiveTab }) => {
 
       recognitionRef.current.start();
       setIsRecording(true);
-      // setRecordingDuration(0);
 
-      // Start recording audio
       navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
         mediaRecorderRef.current = new MediaRecorder(stream);
         mediaRecorderRef.current.ondataavailable = (event) => {
@@ -124,9 +123,6 @@ const AddNote = ({ setModal, activeTab, setActiveTab }) => {
             type: "audio/mp3",
           });
           setRecordedAudio(URL.createObjectURL(audioBlob));
-
-          // Start speech recognition after recording stops
-          // recognitionRef.current.start();
         };
         mediaRecorderRef.current.start();
       });
@@ -157,7 +153,7 @@ const AddNote = ({ setModal, activeTab, setActiveTab }) => {
 
   const handleTextToSpeech = () => {
     if (!transcript.trim()) {
-      alert("No note content to speak.");
+      toast.warning("No note content to speak.");
       return;
     }
     const utterance = new SpeechSynthesisUtterance(transcript);
@@ -188,10 +184,11 @@ const AddNote = ({ setModal, activeTab, setActiveTab }) => {
     navigator.clipboard
       .writeText(transcript)
       .then(() => {
-        alert("Transcript copied to clipboard!");
+        toast.success("Transcript copied to clipboard!");
       })
       .catch((err) => {
         console.error("Failed to copy transcript: ", err);
+        toast.error("Failed to copy transcript.");
       });
   };
 
@@ -202,39 +199,36 @@ const AddNote = ({ setModal, activeTab, setActiveTab }) => {
       a.download = "recording.mp3";
       a.click();
     } else {
-      alert("No audio recorded yet.");
+      toast.warning("No audio recorded yet.");
     }
   };
 
   const handleCreateNote = async () => {
     if (!note.title.trim() || !note.content.trim() || note.images.length > 4) {
-      alert("Invalid input: Ensure title and content are filled, and max 4 images.");
+      toast.error("Invalid input: Ensure title and content are filled, and max 4 images.");
       return;
     }
-  
+
     try {
       setLoading(true);
       const imageForm = new FormData();
       note.images.forEach((file) => {
         imageForm.append("images", file);
       });
-      
+
       const uploadedImages = note.images.length
         ? await uploadImage(imageForm).unwrap()
         : { images: [] };
-  
+
       let uploadedAudioUrl = "";
       if (recordedAudio) {
         const audioBlob = await fetch(recordedAudio).then((res) => res.blob());
         const audioForm = new FormData();
         audioForm.append("audio", audioBlob, "recording.mp3");
-        for (let pair of audioForm.entries()) {
-          console.log(pair[0], pair[1]); // Should log: "audio", [Blob]
-        }
         const uploadedAudio = await uploadAudio(audioForm).unwrap();
         uploadedAudioUrl = uploadedAudio.audio;
       }
-  
+
       const newNoteData = {
         title: note.title,
         content: note.content,
@@ -242,18 +236,17 @@ const AddNote = ({ setModal, activeTab, setActiveTab }) => {
         audio: uploadedAudioUrl,
         isFavourite,
       };
-  
+
       await newNote(newNoteData).unwrap();
-      
-      alert("Note created successfully!");
+
+      toast.success("Note created successfully!");
       setLoading(false);
       setModal(false);
     } catch (error) {
       console.error("Failed to create note:", error);
-      alert("Error creating note. Please try again.");
+      toast.error("Error creating note. Please try again.");
     }
   };
-  
 
   if (!setModal) return null;
 
@@ -480,12 +473,12 @@ const AddNote = ({ setModal, activeTab, setActiveTab }) => {
               )}
 
               <button
-              disabled={loading}
+                disabled={loading}
                 onClick={handleCreateNote}
                 className="mt-4 inline-flex items-center text-white bg-teal-500 hover:bg-teal-600 px-4 py-2 rounded-md transition"
               >
                 <FaPlus className="mr-2" />
-                {loading ? 'Creating...':'Create Note'}
+                {loading ? 'Creating...' : 'Create Note'}
               </button>
             </div>
           )}

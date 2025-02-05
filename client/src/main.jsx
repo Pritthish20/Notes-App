@@ -19,12 +19,10 @@ const routes=createBrowserRouter(
       <Route path='/login' element={<Login/>}/>
       <Route path='/signup' element={<Signup/>}/>
       <Route path='/' element={<Dashboard/>}/>
-      <Route path='/home' element={<Home/>}/>
-      <Route path='/fav' element={<Favourites/>}/>
-
       
       <Route  path='' element={<UserRoute/>}>
-      
+      <Route path='/home' element={<Home/>}/>
+      <Route path='/fav' element={<Favourites/>}/>
       </Route>
 
 

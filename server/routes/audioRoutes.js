@@ -10,7 +10,8 @@ const storage = multer.memoryStorage();
 
 // Check if file is a valid audio file
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = [ "audio/wav", "audio/ogg", "audio/mp3", "audio/mp4"];
+  
+  const allowedTypes = [ "audio/wav", "audio/ogg", "audio/mp3", "audio/mp4","audio/mpeg"];
   
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
